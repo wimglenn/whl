@@ -1,9 +1,12 @@
 #!/usr/bin/env python
+"""Minimalist wheel building"""
 import argparse
+import ast
 import base64
 import hashlib
 import logging
 import os
+import re
 import zipfile
 
 
@@ -41,6 +44,12 @@ def get_version(fname):
     raise WhlError("Failed to autodetect __version__")
 
 
+def get_module_docstring(path):
+    """get a .py file docstring, without actually executing the file"""
+    with open(path) as f:
+        return ast.get_docstring(ast.parse(f.read()))
+
+
 def get_record(path, data=None, arcname=None):
     if data is None:
         with open(path, "rb") as f:
@@ -52,6 +61,12 @@ def get_record(path, data=None, arcname=None):
         arcname = path
     line = "{},sha256={},{}".format(arcname, checksum.decode(), len(data))
     return line
+
+
+def _str2list(arg):
+    if isinstance(arg, str):
+        return [arg]
+    return arg
 
 
 def get_dist_files(src):
@@ -72,58 +87,95 @@ def get_dist_files(src):
 
 def make_wheel(
     src=None,
+
+    # core metadata fields
     name=None,
     version=None,
-    # dynamic
+    # dynamic  # new in version 2.2 but I can't find the spec for 2.2
     platform=None,
-    # supported_platform
+    supported_platform=None,
     summary=None,
     description=None,
-    # description_content_type
-    # keywords
+    description_content_type=None,
+    keywords=None,
     home_page=None,
-    # download_url
+    download_url=None,
     author=None,
     author_email=None,
-    # maintainer
-    # maintainer_email
+    maintainer=None,
+    maintainer_email=None,
     license=None,
     classifier=None,
     requires_dist=None,
-    # requires_python
-    # requires_external
-    # project_url
-    # provides_extra
-    # provides_dist
-    # obsoletes_dist
+    requires_python=None,
+    requires_external=None,
+    project_url=None,
+    # provides_extra  # changed in version 2.3 but I can't find the spec for 2.3
+    provides_dist=None,
+    obsoletes_dist=None,
+
     py2=True,
     py3=True,
     output_dir=".",
 ):
+    if name is None:
+        raise WhlError("name is required")
+    if version is None:
+        raise WhlError("version is required")
     METADATA = METADATA_TEMPLATE.format(name=name, version=version)
     metadata_lines = []
+    if platform is not None:
+        metadata_lines.extend("Platform: {}".format(x) for x in _str2list(platform))
+    if supported_platform is not None:
+        metadata_lines.extend("Supported-Platform: {}".format(x) for x in _str2list(supported_platform))
     if summary is not None:
         metadata_lines.append("Summary: {}".format(summary))
+    if description_content_type is not None:
+        metadata_lines.append("Description-Content-Type: {}".format(description_content_type))
+    if keywords is not None:
+        metadata_lines.append("Keywords: {}".format(keywords))
     if home_page is not None:
         metadata_lines.append("Home-page: {}".format(home_page))
-    if requires_dist is not None:
-        if isinstance(requires_dist, str):
-            requires_dist = [requires_dist]
-        metadata_lines.extend("Requires-Dist: {}".format(r) for r in requires_dist)
+    if download_url is not None:
+        metadata_lines.append("Download-URL: {}".format(download_url))
     if author is not None:
         metadata_lines.append("Author: {}".format(author))
     if author_email is not None:
         metadata_lines.append("Author-email: {}".format(author_email))
+    if maintainer != author and maintainer is not None:
+        metadata_lines.append("Maintainer: {}".format(maintainer))
+    if maintainer_email != author_email and maintainer_email is not None:
+        metadata_lines.append("Maintainer-email: {}".format(maintainer_email))
     if license is not None:
         metadata_lines.append("License: {}".format(license))
-    if platform is not None:
-        if isinstance(platform, str):
-            platform = [platform]
-        metadata_lines.extend("Platform: {}".format(p) for p in platform)
     if classifier is not None:
-        if isinstance(classifier, str):
-            classifier = [classifier]
-        metadata_lines.extend("Classifier: {}".format(c) for c in classifier)
+        metadata_lines.extend("Classifier: {}".format(x) for x in _str2list(classifier))
+    if requires_dist is not None:
+        metadata_lines.extend("Requires-Dist: {}".format(x) for x in _str2list(requires_dist))
+    if requires_python is not None:
+        metadata_lines.append("Requires-Python: {}".format(requires_python))
+    if requires_external is not None:
+        metadata_lines.extend("Requires-External: {}".format(x) for x in _str2list(requires_external))
+    if project_url is not None:
+        metadata_lines.extend("Project-URL: {}".format(x) for x in _str2list(project_url))
+    _provides_extra = []
+    # auto-generate Provides-Extra from Requires-Dist entries
+    for req in _str2list(requires_dist or []):
+        if ";" in req:
+            suffix = req.split(";")[-1]
+            if "extra" in suffix:
+                val = suffix.split("==")[-1].strip()
+                val = val.strip("'")
+                val = val.strip('"')
+                if re.match(r"^([a-z0-9]|[a-z0-9]([a-z0-9-](?!-))*[a-z0-9])$", val):
+                    _provides_extra.append(val)
+                # see https://packaging.python.org/en/latest/specifications/core-metadata/#provides-extra-multiple-use
+    for extra in {}.fromkeys(_provides_extra):
+        metadata_lines.append("Provides-Extra: {}".format(extra))
+    if provides_dist is not None:
+        metadata_lines.extend("Provides-Dist: {}".format(x) for x in _str2list(provides_dist))
+    if obsoletes_dist is not None:
+        metadata_lines.extend("Obsoletes-Dist: {}".format(x) for x in _str2list(obsoletes_dist))
     if metadata_lines:
         METADATA += "\n".join(metadata_lines) + "\n"
     if description is not None:
@@ -224,17 +276,32 @@ def main():
         if not os.path.isfile(init):
             raise WhlError("{} must contain an __init__.py".format(src))
         version = get_version(init)
+        docstring = get_module_docstring(init)
+        readme = os.path.join(src, "..", "README.rst")
     elif os.path.isfile(src):
         version = get_version(src)
         if name.endswith(".py"):
             name = name[:-3]
+        docstring = get_module_docstring(src)
+        readme = os.path.join(os.path.dirname(src), "README.rst")
     else:
         raise WhlError("Unknown source: {}".format(src))
+
+    description = None
+    if os.path.isfile(readme):
+        with open(readme) as f:
+            description = f.read()
+
+    summary = None
+    if docstring:
+        summary = docstring.splitlines()[0]
 
     whl_path = make_wheel(
         src=src,
         name=name,
         version=version,
+        summary=summary,
+        description=description,
         py2=py2,
         py3=py3,
         output_dir=args.output_dir,
