@@ -199,7 +199,7 @@ def make_wheel(
     whl_path = os.path.join(output_dir, whl_name)
 
     RECORD = []
-    zf = zipfile.ZipFile(whl_path, "w")
+    zf = zipfile.ZipFile(whl_path, "w", compression=zipfile.ZIP_DEFLATED)
     if src:
         if isinstance(src, (list, tuple)):
             dist_files = src
@@ -216,18 +216,20 @@ def make_wheel(
 
     METADATA = METADATA.encode("utf-8")
     WHEEL = WHEEL.encode("utf-8")
+    dt = 2022, 1, 1, 0, 0, 0  # for reproducible builds
 
-    info_metadata = os.path.join(dist_info_name, "METADATA")
-    RECORD.append(get_record(info_metadata, data=METADATA))
-    zf.writestr(info_metadata, METADATA)
+    zinfo_metadata = zipfile.ZipInfo(os.path.join(dist_info_name, "METADATA"), dt)
+    RECORD.append(get_record(zinfo_metadata.orig_filename, data=METADATA))
+    zf.writestr(zinfo_metadata, METADATA, compress_type=zipfile.ZIP_DEFLATED)
 
-    info_wheel = os.path.join(dist_info_name, "WHEEL")
-    RECORD.append(get_record(info_wheel, data=WHEEL))
-    zf.writestr(info_wheel, WHEEL)
+    zinfo_wheel = zipfile.ZipInfo(os.path.join(dist_info_name, "WHEEL"), dt)
+    RECORD.append(get_record(zinfo_wheel.orig_filename, data=WHEEL))
+    zf.writestr(zinfo_wheel, WHEEL, compress_type=zipfile.ZIP_DEFLATED)
 
     RECORD.append("{},,".format(os.path.join(dist_info_name, "RECORD")))
     RECORD_BYTES = "\n".join(RECORD).encode("utf-8")
-    zf.writestr(os.path.join(dist_info_name, "RECORD"), RECORD_BYTES)
+    zinfo_record = zipfile.ZipInfo(os.path.join(dist_info_name, "RECORD"), dt)
+    zf.writestr(zinfo_record, RECORD_BYTES, compress_type=zipfile.ZIP_DEFLATED)
 
     zf.close()
     return whl_path
