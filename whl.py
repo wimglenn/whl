@@ -10,7 +10,7 @@ import re
 import zipfile
 
 
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 
 
 log = logging.getLogger(__name__)
@@ -213,16 +213,20 @@ def make_wheel(
             RECORD.append(record)
             log.info(record)
 
+    METADATA = METADATA.encode("utf-8")
+    WHEEL = WHEEL.encode("utf-8")
+
     info_metadata = os.path.join(dist_info_name, "METADATA")
-    RECORD.append(get_record(info_metadata, data=METADATA.encode()))
+    RECORD.append(get_record(info_metadata, data=METADATA))
     zf.writestr(info_metadata, METADATA)
 
     info_wheel = os.path.join(dist_info_name, "WHEEL")
-    RECORD.append(get_record(info_wheel, data=WHEEL.encode()))
+    RECORD.append(get_record(info_wheel, data=WHEEL))
     zf.writestr(info_wheel, WHEEL)
 
     RECORD.append("{},,".format(os.path.join(dist_info_name, "RECORD")))
-    zf.writestr(os.path.join(dist_info_name, "RECORD"), "\n".join(RECORD))
+    RECORD_BYTES = "\n".join(RECORD).encode("utf-8")
+    zf.writestr(os.path.join(dist_info_name, "RECORD"), RECORD_BYTES)
 
     zf.close()
     return whl_path
