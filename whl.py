@@ -25,6 +25,7 @@ Version: {version}
 
 
 # https://www.python.org/dev/peps/pep-0427/
+# https://packaging.python.org/en/latest/specifications/binary-distribution-format/
 WHEEL_TEMPLATE = """\
 Wheel-Version: 1.0
 Generator: whl {__version__}
