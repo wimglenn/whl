@@ -10,7 +10,7 @@ import re
 import zipfile
 
 
-__version__ = "0.0.3"
+__version__ = "0.0.4"
 
 
 log = logging.getLogger(__name__)
@@ -114,6 +114,11 @@ def make_wheel(
     # provides_extra  # changed in version 2.3 but I can't find the spec for 2.3
     provides_dist=None,
     obsoletes_dist=None,
+
+    # entry points are specified here:
+    # https://packaging.python.org/en/latest/specifications/entry-points/
+    # but are not included in the core metadata fields (yet?)
+    entry_points=None,
 
     py2=True,
     py3=True,
@@ -225,6 +230,18 @@ def make_wheel(
     zinfo_wheel = zipfile.ZipInfo(os.path.join(dist_info_name, "WHEEL"), dt)
     RECORD.append(get_record(zinfo_wheel.orig_filename, data=WHEEL))
     zf.writestr(zinfo_wheel, WHEEL, compress_type=zipfile.ZIP_DEFLATED)
+
+    if entry_points is not None:
+        lines = []
+        for group, refs in entry_points.items():
+            lines.append("[{}]".format(group))
+            lines.extend(refs)
+            lines.append("")
+        entry_points_txt = "\n".join(lines).encode("utf-8")
+        fname = os.path.join(dist_info_name, "entry_points.txt")
+        zinfo_ep = zipfile.ZipInfo(fname, dt)
+        RECORD.append(get_record(zinfo_ep.orig_filename, data=entry_points_txt))
+        zf.writestr(zinfo_ep, entry_points_txt, compress_type=zipfile.ZIP_DEFLATED)
 
     RECORD.append("{},,".format(os.path.join(dist_info_name, "RECORD")))
     RECORD_BYTES = "\n".join(RECORD).encode("utf-8")

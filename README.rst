@@ -3,7 +3,7 @@ whl
 
 Quickly makes Python wheels_ from a bunch of .py files without needing a ``setup.py`` at all.
 
-**You probably don't want to use this**. It's intentionally minimal for my own use-cases, and doesn't have many features yet (no support for entrypoints, dependencies, extras). If all you're looking for is a fast build, then consider using ``flit build --format wheel`` with a ``pyproject.toml``, this should be nearly as fast.
+**You probably don't want to use this**. It's intentionally minimal for my own use-cases, and doesn't have many features yet (no support for dependencies, extras). If all you're looking for is a fast build, then consider using ``flit build --format wheel`` with a ``pyproject.toml``, this should be nearly as fast.
 
 Usage
 -----
