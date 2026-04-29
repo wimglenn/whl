@@ -10,7 +10,7 @@ import re
 import zipfile
 
 
-__version__ = "0.0.5"
+__version__ = "0.0.6"
 
 
 log = logging.getLogger(__name__)
@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 
 # https://packaging.python.org/specifications/core-metadata/
 METADATA_TEMPLATE = """\
-Metadata-Version: 2.1
+Metadata-Version: 2.5
 Name: {name}
 Version: {version}
 """
@@ -88,8 +88,8 @@ def get_dist_files(src):
 
 def make_wheel(
     src=None,
-
     # core metadata fields
+    # see https://packaging.python.org/en/latest/specifications/core-metadata/
     name=None,
     version=None,
     # dynamic  # new in version 2.2 but I can't find the spec for 2.2
@@ -111,6 +111,8 @@ def make_wheel(
     requires_dist=None,
     requires_python=None,
     requires_external=None,
+    import_name=None,
+    import_namespace=None,
     project_url=None,
     # provides_extra  # changed in version 2.3 but I can't find the spec for 2.3
     provides_dist=None,
@@ -165,6 +167,10 @@ def make_wheel(
         metadata_lines.append("Requires-Python: {}".format(requires_python))
     if requires_external is not None:
         metadata_lines.extend("Requires-External: {}".format(x) for x in _str2list(requires_external))
+    if import_name is not None:
+        metadata_lines.extend("Import-Name: {}".format(x) for x in _str2list(import_name))
+    if import_name is not None:
+        metadata_lines.extend("Import-Namespace: {}".format(x) for x in _str2list(import_namespace))
     if project_url is not None:
         metadata_lines.extend("Project-URL: {}".format(x) for x in _str2list(project_url))
     _provides_extra = []
