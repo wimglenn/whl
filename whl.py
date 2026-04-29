@@ -10,7 +10,7 @@ import re
 import zipfile
 
 
-__version__ = "0.0.6"
+__version__ = "0.0.7"
 
 
 log = logging.getLogger(__name__)
@@ -169,7 +169,7 @@ def make_wheel(
         metadata_lines.extend("Requires-External: {}".format(x) for x in _str2list(requires_external))
     if import_name is not None:
         metadata_lines.extend("Import-Name: {}".format(x) for x in _str2list(import_name))
-    if import_name is not None:
+    if import_namespace is not None:
         metadata_lines.extend("Import-Namespace: {}".format(x) for x in _str2list(import_namespace))
     if project_url is not None:
         metadata_lines.extend("Project-URL: {}".format(x) for x in _str2list(project_url))
