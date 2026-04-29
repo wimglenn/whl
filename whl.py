@@ -10,7 +10,7 @@ import re
 import zipfile
 
 
-__version__ = "0.0.4"
+__version__ = "0.0.5"
 
 
 log = logging.getLogger(__name__)
@@ -106,6 +106,7 @@ def make_wheel(
     maintainer=None,
     maintainer_email=None,
     license=None,
+    license_expression=None,
     classifier=None,
     requires_dist=None,
     requires_python=None,
@@ -154,6 +155,8 @@ def make_wheel(
         metadata_lines.append("Maintainer-email: {}".format(maintainer_email))
     if license is not None:
         metadata_lines.append("License: {}".format(license))
+    if license_expression is not None:
+        metadata_lines.append("License-Expression: {}".format(license_expression))
     if classifier is not None:
         metadata_lines.extend("Classifier: {}".format(x) for x in _str2list(classifier))
     if requires_dist is not None:
